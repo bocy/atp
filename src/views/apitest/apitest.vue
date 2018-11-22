@@ -90,18 +90,17 @@
               </el-radio-group>
             </el-form-item>
             <el-form-item label="请求数据" :label-width="formLabelWidth">
-              <el-input v-if="caseForm.dataformat === 'json'" type="textarea" v-model="caseForm.params" placeholder="输入期望请求参数"></el-input>
+              <el-input v-if="caseForm.dataformat === 'json'" type="textarea" v-model="jsonParam" placeholder="输入期望请求参数"></el-input>
               <template v-else>
                 <el-col :span="5">
                   <el-button icon="el-icon-plus" size="mini" @click="addParam()">添加请求参数</el-button>
                 </el-col>
-                <el-col :span="1">&nbsp;</el-col>
                 <el-col :span="4">
                   <el-button icon="el-icon-plus" size="mini" @click="addFileParam()">添加文件</el-button>
                 </el-col>
               </template>
             </el-form-item>
-            <el-form-item v-for="param,index in params" align="center" :key="index"
+            <el-form-item v-for="(param, index) in params" align="center" :key="index"
                            :label-width="formLabelWidth">
               <el-col :span="8">
                 <el-input v-model="param.name" placeholder="参数名称"></el-input>
@@ -114,7 +113,7 @@
                 <el-button size="mini" type="danger" icon="el-icon-close" @click="removeParam(param)"></el-button>
               </el-col>
             </el-form-item>
-            <el-form-item v-for="param,index in fileParams" align="center" :key="index"
+            <el-form-item v-for="(param,index) in fileParams" align="center" :key="index"
                           :label-width="formLabelWidth">
               <el-col :span="4">
                 <el-input v-model="param.name" placeholder="参数名称"></el-input>
@@ -152,7 +151,7 @@
             <el-form-item v-for="(expect, index) in expects" :key="index" :label-width="formLabelWidth">
               <el-col :span="4">
                 <el-select v-model="expect.field" placeholder="选择内容区域">
-                  <el-option v-for="field,index in responseField" :value="field.value" :key="index" :label="field.label"></el-option>
+                  <el-option v-for="(field,index) in responseField" :value="field.value" :key="index" :label="field.label"></el-option>
                 </el-select>
               </el-col>
               <el-col :span="4" style="margin-left: 10px">
@@ -160,7 +159,7 @@
               </el-col>
               <el-col :span="4" style="margin-left: 10px">
                 <el-select v-model="expect.matchRule" placeholder="选择匹配方法">
-                  <el-option v-for="match,index in matchRules" :value="match.value" :key="index" :label="match.label"></el-option>
+                  <el-option v-for="(match,index) in matchRules" :value="match.value" :key="index" :label="match.label"></el-option>
                 </el-select>
               </el-col>
               <el-col :span="4" style="margin-left: 10px">
@@ -170,19 +169,12 @@
                 <el-button size="small" type="danger" icon="el-icon-close" @click="delExpect(expect)"></el-button>
               </el-col>
             </el-form-item>
-            <el-form-item label="前置用例">
-              <el-select v-model="caseForm.caseid" placeholder="请选择前置用例">
-                <el-option v-for="testcase in caselist" :label="testcase.name" :value="testcase.id" :key="testcase.id">
-                </el-option>
-              </el-select>
-            </el-form-item>
           </el-tab-pane>
         </el-tabs>
       </el-form>
       <div slot="footer" class="dialog-footer" style="text-align: center">
-        <el-button @click="dialogFormVisible = false" size="small">取 消</el-button>
+        <el-button @click="dialogFormVisible = false; showCaseData()" size="small">取 消</el-button>
         <el-button type="primary" @click="postData()" size="small">确 定</el-button>
-        <el-button type="primary" @click="dryRun()" size="small">试 跑</el-button>
       </div>
     </el-dialog>
 
@@ -235,7 +227,6 @@
 </template>
 
 <script>
-  import axios from 'axios'
   import { getTestCaseList, getTestServerList, getProjectList, deleteTestcase, addTestcase, updateTestcase, runTest } from '@/api/apitest'
   export default {
     data() {
@@ -249,13 +240,22 @@
           module: '',
           method: 'POST',
           uri: '',
-          params: [],
-          expects: [],
-          field: '',
-          matchRule: '',
+          params: '',
+          expects: '',
           dataformat: 'form',
           headers: ''
         },
+        expects: [{
+          field: 'content',
+          specifiedField: '',
+          matchRule: 'contains',
+          assertString: ''
+        }],
+        params: [{
+          name: '',
+          value: ''
+        }],
+        jsonParam: '',
         runForm: {
           serverId: '',
           headers: [],
@@ -285,16 +285,6 @@
         activeTabName: 'interface_info',
         projects: [],
         serverList: [],
-        params: [{
-          name: '',
-          value: ''
-        }],
-        expects: [{
-          field: 'content',
-          specifiedField: '',
-          matchRule: 'contains',
-          assertString: ''
-        }],
         isFileParam: false,
         fileParams: [],
         responseField: [{
@@ -345,15 +335,25 @@
     },
     methods: {
       handleEdit(index, row) {
-        this.caseForm = this.CaseData[index]
-        this.headerList = JSON.parse(row.headers)
+        // console.log("asdf")
+        console.log(index, row)
+        this.caseForm = row
+        this.expects = JSON.parse(row.expects)
+        if (row.dataformat === 'json') {
+          this.jsonParam = row.params
+          this.params = []
+        } else {
+          this.jsonParam = ''
+          this.params = JSON.parse(row.params)
+        }
+        // this.params = JSON.parse(row.params)
+        this.headers = JSON.parse(row.headers)
         this.title = '编辑'
         this.dialogFormVisible = true
         this.caseId = row.id
-        this.params = JSON.parse(row.params)
-        this.expects = JSON.parse(row.expects)
+        // this.params = JSON.parse(row.params)
+        // this.expects = JSON.parse(row.expects)
         console.log(this.CaseData)
-        // console.log(index, row)
       },
       postDelete(id) {
         deleteTestcase(id).then((response) => {
@@ -395,16 +395,22 @@
         })
       },
       postData() {
-        // console.log('提交数据data')
+        console.log('提交数据data')
         this.caseForm.headers = JSON.stringify(this.headerList)
-        console.log('提交数据data:' + this.caseForm)
+        this.caseForm.expects = JSON.stringify(this.expects)
+        this.caseForm.dataformat === 'json' ? this.caseForm.params = this.jsonParam : this.caseForm.params = JSON.stringify(this.params)
+        // if (this.caseForm.dataformat === 'json'){
+        //   this.caseForm.params = this.jsonParam
+        // }
+        // this.caseForm.params = JSON.stringify(this.params)
+        console.log('提交数据data:' + JSON.stringify(this.caseForm))
         if (this.title === '编辑') {
           updateTestcase(this.caseId, this.caseForm).then((response) => {
-            console.log(response.body)
+            console.log(response)
             this.dialogFormVisible = false
             this.showCaseData()
           }, (response) => {
-            console.log(response.body)
+            console.log(response)
           })
         }
         if (this.title === '新增') {
@@ -414,10 +420,7 @@
           //   paramsData[param.name] = param.value
           //   paramsList.push(paramsData)
           // })
-          this.caseForm.expects = JSON.stringify(this.expects)
-          if (this.caseForm.dataformat === 'form') {
-            this.caseForm.params = JSON.stringify(this.params)
-          }
+          // this.caseForm.expects = JSON.stringify(this.expects)
           addTestcase(this.caseForm).then((response) => {
             // console.log(response.body)
             this.dialogFormVisible = false
@@ -442,18 +445,20 @@
           this.runFormVisible = false
           this.resultData = response
           this.resultFormVisible = true
-          if (response.status !== 200) {
-            this.$message({
-              message: '用例执行失败，请到结果页面查看原因',
-              type: 'error'
-            })
-          } else {
-            this.$message({
-              message: '用例执行成功',
-              type: 'success'
-            })
-          }
+          this.$message.success('用例执行成功')
+          // if (response.status !== 200) {
+          //   this.$message({
+          //     message: '用例执行失败，请到结果页面查看原因',
+          //     type: 'error'
+          //   })
+          // } else {
+          //   this.$message({
+          //     message: '用例执行成功',
+          //     type: 'success'
+          //   })
+          // }
         }, response => {
+          this.$message.error('用例执行失败，请到结果页面查看原因')
           console.log(response)
         })
       },
@@ -499,7 +504,6 @@
       },
       createCase() {
         this.title = '新增'
-        this.params = []
         this.caseForm = {
           name: '',
           project: '',
@@ -511,6 +515,14 @@
           dataformat: 'form',
           headers: ''
         }
+        this.expects = [{
+          field: 'content',
+          specifiedField: '',
+          matchRule: 'contains',
+          assertString: ''
+        }]
+        this.jsonParam = ''
+        this.params = []
         this.headerList = []
         this.dialogFormVisible = true
       },
@@ -600,11 +612,6 @@
         if (index !== -1) {
           this.fileParams.splice(index, 1)
         }
-      },
-      dryRun() {
-        axios.get('http://localhost:8000/serverlist').then(response => {
-          console.log(response)
-        })
       },
       addExpect() {
         this.expects.push({
